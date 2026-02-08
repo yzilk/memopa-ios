@@ -24,9 +24,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		62C2DC8E2F38C76400DE3106 /* memopa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = memopa.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		62C2DC9D2F38C76400DE3106 /* memopaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = memopaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		62C2DCA72F38C76400DE3106 /* memopaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = memopaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		62C2DC8E2F38C76400DE3106 /* memopa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = memopa.app; path = "/Users/mckm/Dev/github/memopa/build/Debug-iphoneos/memopa.app"; sourceTree = "<absolute>"; };
+		62C2DC9D2F38C76400DE3106 /* memopaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = memopaTests.xctest; path = "/Users/mckm/Dev/github/memopa/build/Debug-iphoneos/memopa.app/PlugIns/memopaTests.xctest"; sourceTree = "<absolute>"; };
+		62C2DCA72F38C76400DE3106 /* memopaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = memopaUITests.xctest; path = "/Users/mckm/Dev/github/memopa/build/Debug-iphoneos/memopaUITests-Runner.app/PlugIns/memopaUITests.xctest"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,21 +75,10 @@
 		62C2DC852F38C76400DE3106 = {
 			isa = PBXGroup;
 			children = (
-				62C2DC902F38C76400DE3106 /* memopa */,
 				62C2DCA02F38C76400DE3106 /* memopaTests */,
 				62C2DCAA2F38C76400DE3106 /* memopaUITests */,
-				62C2DC8F2F38C76400DE3106 /* Products */,
+				62C2DC902F38C76400DE3106 /* memopa */,
 			);
-			sourceTree = "<group>";
-		};
-		62C2DC8F2F38C76400DE3106 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				62C2DC8E2F38C76400DE3106 /* memopa.app */,
-				62C2DC9D2F38C76400DE3106 /* memopaTests.xctest */,
-				62C2DCA72F38C76400DE3106 /* memopaUITests.xctest */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -172,6 +161,7 @@
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
+				ORGANIZATIONNAME = yzilk;
 				TargetAttributes = {
 					62C2DC8D2F38C76400DE3106 = {
 						CreatedOnToolsVersion = 26.2;
@@ -196,7 +186,7 @@
 			mainGroup = 62C2DC852F38C76400DE3106;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 62C2DC8F2F38C76400DE3106 /* Products */;
+			productRefGroup = 62C2DC852F38C76400DE3106;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
