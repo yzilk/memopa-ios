@@ -18,7 +18,6 @@ struct NoteCardView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 
-                // 本文のプレビュー（2行目以降があれば表示）
                 Text(previewText)
                     .font(.caption)
                     .foregroundStyle(.tertiary)

@@ -9,27 +9,37 @@ import SwiftData
 struct NoteListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Note.createdAt, order: .reverse) private var notes: [Note]
+    
+    @State private var navigationPath = NavigationPath()
     @State private var viewModel: NoteViewModel?
     
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(notes) { note in
-                    NavigationLink(destination: NoteDetailView(note: note)) {
-                        NoteCardView(note: note)
+        NavigationStack(path: $navigationPath) {
+            ZStack {
+                LinearGradient(colors: [Color.orange.opacity(0.1), Color(.systemBackground)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    .ignoresSafeArea()
+                
+                List {
+                    ForEach(notes) { note in
+                        NavigationLink(value: note) {
+                            NoteCardView(note: note)
+                        }
+                        .listRowBackground(Color.white.opacity(0.5))
                     }
+                    .onDelete(perform: deleteNotes)
                 }
-                .onDelete(perform: deleteNotes)
-                .listStyle(.plain)
-                .background(Color(.systemBackground))
+                .scrollContentBackground(.hidden)
+                .listStyle(.insetGrouped)
             }
-            .listStyle(.plain) // 余計な余白を消して画面を広く使う
-            .navigationTitle("すべてのメモ") // タイトルも純正風に
-            .navigationBarTitleDisplayMode(.inline) // ← ここで「デカすぎる題名」を解消！
+            .navigationTitle("すべてのメモ")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: Note.self) { note in
+                NoteDetailView(note: note)
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {
                     Spacer()
-                    Button(action: addNote) {
+                    Button(action: addAndEditNote) {
                         Image(systemName: "square.and.pencil")
                     }
                 }
@@ -40,8 +50,10 @@ struct NoteListView: View {
         }
     }
     
-    private func addNote() {
-        viewModel?.addNote(content: "")
+    private func addAndEditNote() {
+        let newNote = Note(content: "")
+        modelContext.insert(newNote)
+        navigationPath.append(newNote)
     }
     
     private func deleteNotes(offsets: IndexSet) {
@@ -50,4 +62,4 @@ struct NoteListView: View {
         }
     }
 }
-
+    
