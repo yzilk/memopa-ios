@@ -24,9 +24,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		62C2DC8E2F38C76400DE3106 /* memopa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = memopa.app; path = "/Users/mckm/Dev/github/memopa/build/Debug-iphoneos/memopa.app"; sourceTree = "<absolute>"; };
 		62C2DC9D2F38C76400DE3106 /* memopaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = memopaTests.xctest; path = "/Users/mckm/Dev/github/memopa/build/Debug-iphoneos/memopa.app/PlugIns/memopaTests.xctest"; sourceTree = "<absolute>"; };
 		62C2DCA72F38C76400DE3106 /* memopaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = memopaUITests.xctest; path = "/Users/mckm/Dev/github/memopa/build/Debug-iphoneos/memopaUITests-Runner.app/PlugIns/memopaUITests.xctest"; sourceTree = "<absolute>"; };
+		62C2DCE22F3C58E000DE3106 /* memopa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = memopa.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -78,6 +78,7 @@
 				62C2DCA02F38C76400DE3106 /* memopaTests */,
 				62C2DCAA2F38C76400DE3106 /* memopaUITests */,
 				62C2DC902F38C76400DE3106 /* memopa */,
+				62C2DCE22F3C58E000DE3106 /* memopa.app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -103,7 +104,7 @@
 			packageProductDependencies = (
 			);
 			productName = memopa;
-			productReference = 62C2DC8E2F38C76400DE3106 /* memopa.app */;
+			productReference = 62C2DCE22F3C58E000DE3106 /* memopa.app */;
 			productType = "com.apple.product-type.application";
 		};
 		62C2DC9C2F38C76400DE3106 /* memopaTests */ = {
@@ -395,6 +396,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -427,6 +429,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
