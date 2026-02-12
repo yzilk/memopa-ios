@@ -24,8 +24,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		62C2DC9D2F38C76400DE3106 /* memopaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = memopaTests.xctest; path = "/Users/mckm/Dev/github/memopa/build/Debug-iphoneos/memopa.app/PlugIns/memopaTests.xctest"; sourceTree = "<absolute>"; };
-		62C2DCA72F38C76400DE3106 /* memopaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = memopaUITests.xctest; path = "/Users/mckm/Dev/github/memopa/build/Debug-iphoneos/memopaUITests-Runner.app/PlugIns/memopaUITests.xctest"; sourceTree = "<absolute>"; };
+		6277BB942F3DD9710007D96C /* memopaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = memopaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6277BB952F3DD9710007D96C /* memopaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = memopaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		62C2DCE22F3C58E000DE3106 /* memopa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = memopa.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -79,6 +79,8 @@
 				62C2DCAA2F38C76400DE3106 /* memopaUITests */,
 				62C2DC902F38C76400DE3106 /* memopa */,
 				62C2DCE22F3C58E000DE3106 /* memopa.app */,
+				6277BB942F3DD9710007D96C /* memopaTests.xctest */,
+				6277BB952F3DD9710007D96C /* memopaUITests.xctest */,
 			);
 			sourceTree = "<group>";
 		};
@@ -127,7 +129,7 @@
 			packageProductDependencies = (
 			);
 			productName = memopaTests;
-			productReference = 62C2DC9D2F38C76400DE3106 /* memopaTests.xctest */;
+			productReference = 6277BB942F3DD9710007D96C /* memopaTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		62C2DCA62F38C76400DE3106 /* memopaUITests */ = {
@@ -150,7 +152,7 @@
 			packageProductDependencies = (
 			);
 			productName = memopaUITests;
-			productReference = 62C2DCA72F38C76400DE3106 /* memopaUITests.xctest */;
+			productReference = 6277BB952F3DD9710007D96C /* memopaUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
