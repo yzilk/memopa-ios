@@ -33,24 +33,46 @@ struct NoteDetailView: View {
                     ForEach($bViewModel.elements) { $element in
                         switch element {
                         case .text(let id, _):
-                            InstantCopyEditor(
-                                text: binding(for: id),
-                                selectedRange: $bViewModel.selectedRange,
-                                isFocused: $isFocused,
-                                onCopy: {
-                                    withAnimation(.spring()) {
-                                        showCopiedBadge = true
-                                    }
-                                },
-                                toolbarButtons: InstantCopyEditor.ToolbarButtons(
-                                    btn1Name: btn1Name,
-                                    btn1Action: { viewModel.processAI(mode: .definition, customPrompt: btn1Prompt) },
-                                    btn2Name: btn2Name,
-                                    btn2Action: { viewModel.processAI(mode: .metaphor, customPrompt: btn2Prompt) },
-                                    btn3Name: btn3Name,
-                                    btn3Action: { viewModel.processAI(mode: .essence, customPrompt: btn3Prompt) }
+                            ZStack(alignment: .topLeading) {
+                                InstantCopyEditor(
+                                    text: binding(for: id),
+                                    selectedRange: $bViewModel.selectedRange,
+                                    isFocused: $isFocused,
+                                    onCopy: {
+                                        withAnimation(.spring()) {
+                                            showCopiedBadge = true
+                                        }
+                                    },
+                                    toolbarButtons: InstantCopyEditor.ToolbarButtons(
+                                        btn1Name: btn1Name,
+                                        btn1Action: { viewModel.processAI(mode: .definition, customPrompt: btn1Prompt) },
+                                        btn2Name: btn2Name,
+                                        btn2Action: { viewModel.processAI(mode: .metaphor, customPrompt: btn2Prompt) },
+                                        btn3Name: btn3Name,
+                                        btn3Action: { viewModel.processAI(mode: .essence, customPrompt: btn3Prompt) }
+                                    )
                                 )
-                            )
+                                
+                                // 💡 クリップボードサジェスト（GitHub Copilot風）
+                                if viewModel.showClipboardSuggestion, binding(for: id).wrappedValue.isEmpty {
+                                    Text(viewModel.clipboardSuggestion)
+                                        .font(.body)
+                                        .foregroundColor(.gray.opacity(0.5))
+                                        .padding(.top, 8)
+                                        .padding(.leading, 5)
+                                        .allowsHitTesting(false)
+                                        .transition(.opacity)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                // 💡 サジェストが表示されている場合は統合
+                                if viewModel.showClipboardSuggestion {
+                                    withAnimation {
+                                        viewModel.acceptClipboardSuggestion()
+                                    }
+                                }
+                            }
                             .padding(.horizontal)
                             .frame(maxWidth: UIScreen.main.bounds.width)
                             
@@ -68,7 +90,17 @@ struct NoteDetailView: View {
                         }
                     }
                     
-                    Color.clear.frame(height: 120)
+                    // 💡 空白エリアをタップしたらサジェストを消す
+                    Color.clear
+                        .frame(height: 120)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if viewModel.showClipboardSuggestion {
+                                withAnimation {
+                                    viewModel.dismissClipboardSuggestion()
+                                }
+                            }
+                        }
                 }
                 .padding(.vertical)
             }
@@ -118,6 +150,11 @@ struct NoteDetailView: View {
                 if let index = viewModel.elements.firstIndex(where: { $0.id == id }) {
                     viewModel.elements[index] = .text(id: id, content: newValue)
                     viewModel.syncToNote()
+                    
+                    // 💡 ユーザーが文字を入力したらサジェストを消す
+                    if !newValue.isEmpty && viewModel.showClipboardSuggestion {
+                        viewModel.dismissClipboardSuggestion()
+                    }
                 }
             }
         )

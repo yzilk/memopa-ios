@@ -6,17 +6,54 @@ import Foundation
 import SwiftData
 import Observation
 import SwiftUI
+import UIKit
 
 @Observable
 class NoteViewModel {
     var note: Note
     var elements: [EditorElement] = []
     var selectedRange: NSRange = NSRange(location: 0, length: 0)
+    var clipboardSuggestion: String = ""
+    var showClipboardSuggestion: Bool = false
     
     init(note: Note) {
         self.note = note
         let initialContent = note.content.isEmpty ? "" : note.content
         self.elements = [.text(id: UUID(), content: initialContent)]
+        
+        // 💡 空のノートの場合、クリップボードをチェック
+        if note.content.isEmpty {
+            checkClipboard()
+        }
+    }
+    
+    // 💡 クリップボードの内容をチェック
+    func checkClipboard() {
+        if let text = UIPasteboard.general.string, !text.isEmpty {
+            clipboardSuggestion = text
+            showClipboardSuggestion = true
+        }
+    }
+    
+    // 💡 クリップボードの内容を本文に統合
+    func acceptClipboardSuggestion() {
+        guard showClipboardSuggestion else { return }
+        
+        if let index = elements.firstIndex(where: {
+            if case .text = $0 { return true } else { return false }
+        }), case .text(let id, _) = elements[index] {
+            elements[index] = .text(id: id, content: clipboardSuggestion)
+            syncToNote()
+        }
+        
+        showClipboardSuggestion = false
+        clipboardSuggestion = ""
+    }
+    
+    // 💡 クリップボードサジェストを破棄
+    func dismissClipboardSuggestion() {
+        showClipboardSuggestion = false
+        clipboardSuggestion = ""
     }
     
     // MARK: - 核心ロジック：AIカードの挿入
@@ -52,11 +89,46 @@ class NoteViewModel {
                 elements.insert(.text(id: UUID(), content: suffix), at: index + 2)
             }
             
-            // デバッグ出力
-            print("--- AIに送信する最終プロンプト ---")
-            print(finalPrompt)
+            // 💡 APIを呼び出す
+            Task {
+                await fetchAIResponse(for: newCard, prompt: finalPrompt)
+            }
+        }
+    }
+    
+    // 💡 API呼び出しとカードの更新
+    private func fetchAIResponse(for card: AICard, prompt: String) async {
+        let apiService = GeminiAPIService()
+        
+        do {
+            let response = try await apiService.fetchExplanation(prompt: prompt)
             
-            // ここでAPIを叩く処理（将来的に実装）
+            // 💡 メインスレッドでUIを更新
+            await MainActor.run {
+                if let index = elements.firstIndex(where: { $0.id == card.id }) {
+                    withAnimation {
+                        elements[index] = .aiCard(card: AICard(id: card.id, text: response))
+                    }
+                }
+            }
+            
+        } catch let error as APIError {
+            await MainActor.run {
+                if let index = elements.firstIndex(where: { $0.id == card.id }) {
+                    withAnimation {
+                        let errorMessage = "エラー: \(error.localizedDescription)\n\n設定画面でAPIキーを確認してください。"
+                        elements[index] = .aiCard(card: AICard(id: card.id, text: errorMessage))
+                    }
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if let index = elements.firstIndex(where: { $0.id == card.id }) {
+                    withAnimation {
+                        elements[index] = .aiCard(card: AICard(id: card.id, text: "エラー: \(error.localizedDescription)"))
+                    }
+                }
+            }
         }
     }
     

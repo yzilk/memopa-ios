@@ -11,8 +11,8 @@ struct NoteListView: View {
     @Query(sort: \Note.createdAt, order: .reverse) private var notes: [Note]
     
     @State private var navigationPath = NavigationPath()
-    // 💡 リスト管理用の ViewModel に変更
     @State private var listViewModel: NoteListViewModel?
+    @State private var showSettings = false
     
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -41,12 +41,23 @@ struct NoteListView: View {
                 NoteDetailView(note: note)
             }
             .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showSettings = true
+                    }) {
+                        Image(systemName: "gearshape")
+                    }
+                }
+                
                 ToolbarItemGroup(placement: .bottomBar) {
                     Spacer()
-                    Button(action: addAndEditNote) {
+                    Button(action: addEmptyNote) {
                         Image(systemName: "square.and.pencil")
                     }
                 }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
             }
             .onAppear {
                 if listViewModel == nil {
@@ -56,9 +67,9 @@ struct NoteListView: View {
         }
     }
     
-    private func addAndEditNote() {
-        let newNote = Note(content: "")
-        modelContext.insert(newNote)
+    private func addEmptyNote() {
+        guard let viewModel = listViewModel else { return }
+        let newNote = viewModel.createEmptyNote()
         navigationPath.append(newNote)
     }
     
