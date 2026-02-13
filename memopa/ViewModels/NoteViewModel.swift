@@ -17,11 +17,14 @@ class NoteViewModel {
     var showClipboardSuggestion: Bool = false
     var isLoadingAI: Bool = false
     var buttonConfigViewModel = AIButtonConfigViewModel()
+    var focusedTextBoxId: UUID? = nil  // 💡 現在フォーカスされているテキストボックスのID
     
     init(note: Note) {
         self.note = note
         let initialContent = note.content.isEmpty ? "" : note.content
-        self.elements = [.text(id: UUID(), content: initialContent)]
+        let initialId = UUID()
+        self.elements = [.text(id: initialId, content: initialContent)]
+        self.focusedTextBoxId = initialId  // 💡 初期状態で最初のテキストボックスをフォーカス
         
         if note.content.isEmpty {
             checkClipboard()

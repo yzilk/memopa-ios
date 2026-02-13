@@ -7,7 +7,6 @@ import SwiftData
 
 struct NoteDetailView: View {
     @State private var viewModel: NoteViewModel
-    @State private var isFocused: Bool = false
     @State private var showCopiedBadge = false
     @State private var showButtonConfig = false
     
@@ -29,10 +28,13 @@ struct NoteDetailView: View {
                                     text: binding(for: id),
                                     selectedRange: $bViewModel.selectedRange,
                                     isFocused: Binding(
-                                        get: { isFocused && isFirstTextElement(id: id) },
+                                        get: { viewModel.focusedTextBoxId == id },
                                         set: { newValue in
-                                            if newValue { isFocused = true }
-                                            else { isFocused = false }
+                                            if newValue {
+                                                viewModel.focusedTextBoxId = id
+                                            } else if viewModel.focusedTextBoxId == id {
+                                                viewModel.focusedTextBoxId = nil
+                                            }
                                         }
                                     ),
                                     onCopy: {
@@ -152,10 +154,10 @@ struct NoteDetailView: View {
                 }
             }
             
-            if isFocused {
+            if viewModel.focusedTextBoxId != nil {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完了") {
-                        isFocused = false
+                        viewModel.focusedTextBoxId = nil
                     }
                     .fontWeight(.bold)
                     .foregroundColor(.blue)
@@ -172,8 +174,11 @@ struct NoteDetailView: View {
             }
         }
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                isFocused = true
+            // 💡 画面表示時に最初のテキストボックスをフォーカス
+            if let firstTextId = viewModel.elements.first?.id {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    viewModel.focusedTextBoxId = firstTextId
+                }
             }
         }
     }
