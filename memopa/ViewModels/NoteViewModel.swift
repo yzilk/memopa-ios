@@ -23,6 +23,7 @@ class NoteViewModel {
     private let cardMarkerPrefix = "[CARD:"
     private let cardMarkerSuffix = "]"
     private let cardSeparator = "|||"
+    private let idSeparator = ":::"
     
     init(note: Note) {
         self.note = note
@@ -51,18 +52,24 @@ class NoteViewModel {
                 if let markerEnd = content[markerStart.upperBound...].range(of: cardMarkerSuffix) {
                     // マーカー内容を抽出
                     let markerContent = String(content[markerStart.upperBound..<markerEnd.lowerBound])
-                    let parts = markerContent.components(separatedBy: cardSeparator)
+                    let parts = markerContent.components(separatedBy: idSeparator)
                     
+                    // フォーマット: id:::title|||body
                     if parts.count == 2 {
-                        // 現在のテキストを要素として追加
-                        if !currentElements.isEmpty || !currentText.isEmpty {
-                            currentElements.append(.text(id: UUID(), content: currentText))
-                            currentText = ""
-                        }
+                        let cardId = UUID(uuidString: parts[0]) ?? UUID()
+                        let contentParts = parts[1].components(separatedBy: cardSeparator)
                         
-                        // カードを追加
-                        let card = AIResponseCard(title: parts[0], body: parts[1])
-                        currentElements.append(.aiCard(card: card))
+                        if contentParts.count == 2 {
+                            // 現在のテキストを要素として追加
+                            if !currentElements.isEmpty || !currentText.isEmpty {
+                                currentElements.append(.text(id: UUID(), content: currentText))
+                                currentText = ""
+                            }
+                            
+                            // カードを追加（IDを保持）
+                            let card = AIResponseCard(id: cardId, title: contentParts[0], body: contentParts[1])
+                            currentElements.append(.aiCard(card: card))
+                        }
                     }
                     
                     searchStartIndex = markerEnd.upperBound
@@ -214,9 +221,9 @@ class NoteViewModel {
         
         let prefix = String(content.prefix(insertPosition))
         
-        // 💡 カードをマーカー形式に変換
+        // 💡 カードをマーカー形式に変換（IDを含める）
         let cardMarkers = cards.map { card in
-            "\n\(cardMarkerPrefix)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)\n"
+            "\n\(cardMarkerPrefix)\(card.id.uuidString)\(idSeparator)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)\n"
         }.joined()
         
         let suffix = String(content.suffix(content.count - insertPosition))
@@ -255,11 +262,14 @@ class NoteViewModel {
     // MARK: - カード操作
     func adoptCard(_ card: AIResponseCard) {
         withAnimation(.spring()) {
-            // 💡 カードのマーカーを通常テキストに置換
-            let cardMarker = "\(cardMarkerPrefix)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)"
-            let adoptedText = "【\(card.title)】\n\(card.body)\n"
+            // 💡 カードIDを使って特定のカードのマーカーだけを通常テキストに置換
+            let cardMarker = "\n\(cardMarkerPrefix)\(card.id.uuidString)\(idSeparator)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)\n"
+            let adoptedText = "\n【\(card.title)】\n\(card.body)\n"
             
-            note.content = note.content.replacingOccurrences(of: cardMarker, with: adoptedText)
+            // 💡 IDで特定されるカードを置換
+            if let range = note.content.range(of: cardMarker) {
+                note.content.replaceSubrange(range, with: adoptedText)
+            }
             
             // 💡 再解析
             parseContentToElements()
@@ -268,9 +278,13 @@ class NoteViewModel {
     
     func discardCard(_ card: AIResponseCard) {
         withAnimation(.easeOut(duration: 0.2)) {
-            // 💡 カードのマーカーを削除
-            let cardMarker = "\n\(cardMarkerPrefix)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)\n"
-            note.content = note.content.replacingOccurrences(of: cardMarker, with: "")
+            // 💡 カードIDを使って特定のカードのマーカーだけを削除
+            let cardMarker = "\n\(cardMarkerPrefix)\(card.id.uuidString)\(idSeparator)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)\n"
+            
+            // 💡 IDで特定されるカードを削除
+            if let range = note.content.range(of: cardMarker) {
+                note.content.replaceSubrange(range, with: "\n")
+            }
             
             // 💡 再解析
             parseContentToElements()
@@ -284,8 +298,8 @@ class NoteViewModel {
             case .text(_, let content):
                 return content
             case .aiCard(let card):
-                // カードをマーカー形式に変換
-                return "\(cardMarkerPrefix)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)"
+                // カードをマーカー形式に変換（IDを含める）
+                return "\(cardMarkerPrefix)\(card.id.uuidString)\(idSeparator)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)"
             }
         }.joined()
         
