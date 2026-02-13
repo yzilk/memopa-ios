@@ -157,11 +157,13 @@ struct NoteDetailView: View {
             }
         }
         .sheet(isPresented: $showButtonConfig) {
-            AIButtonConfigView()
-                .onDisappear {
-                    // 💡 設定画面を閉じたらボタン設定を再読み込み
-                    viewModel.buttonConfigViewModel.loadButtons()
-                }
+            NavigationView {
+                AIButtonConfigView()
+            }
+            .onDisappear {
+                // 💡 設定画面を閉じたらボタン設定を再読み込み
+                viewModel.buttonConfigViewModel.loadButtons()
+            }
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

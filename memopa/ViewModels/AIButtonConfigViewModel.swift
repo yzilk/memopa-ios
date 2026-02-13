@@ -20,11 +20,11 @@ class AIButtonConfigViewModel {
            let decoded = try? JSONDecoder().decode([AIButtonConfig].self, from: data) {
             buttons = decoded
         } else {
-            // デフォルトボタン
+            // デフォルトボタン（6文字以内）
             buttons = [
-                AIButtonConfig(name: "💡 ってなに？", prompt: "以下の単語を定義して、初心者向けに分かりやすく解説してください"),
-                AIButtonConfig(name: "☁️ ゆるふわ", prompt: "以下の内容を、親しみやすい例え話を使って、ゆるい雰囲気で解説してください"),
-                AIButtonConfig(name: "🎯 要すると？", prompt: "以下の内容を、一番大切なポイントが伝わるように要約してください")
+                AIButtonConfig(name: "💡なに？", prompt: "以下の単語を定義して、初心者向けに分かりやすく解説してください"),
+                AIButtonConfig(name: "☁️ゆるふわ", prompt: "以下の内容を、親しみやすい例え話を使って、ゆるい雰囲気で解説してください"),
+                AIButtonConfig(name: "🎯要約", prompt: "以下の内容を、一番大切なポイントが伝わるように要約してください")
             ]
         }
     }
@@ -36,7 +36,7 @@ class AIButtonConfigViewModel {
     }
     
     func addButton() {
-        let newButton = AIButtonConfig(name: "新しいボタン", prompt: "プロンプトを入力してください")
+        let newButton = AIButtonConfig(name: "新ボタン", prompt: "プロンプトを入力してください", isEnabled: false)
         buttons.append(newButton)
         saveButtons()
     }
