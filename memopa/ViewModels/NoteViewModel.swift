@@ -19,16 +19,77 @@ class NoteViewModel {
     var buttonConfigViewModel = AIButtonConfigViewModel()
     var focusedTextBoxId: UUID? = nil  // 💡 現在フォーカスされているテキストボックスのID
     
+    // 💡 カードマーカーの定義
+    private let cardMarkerPrefix = "[CARD:"
+    private let cardMarkerSuffix = "]"
+    private let cardSeparator = "|||"
+    
     init(note: Note) {
         self.note = note
-        let initialContent = note.content.isEmpty ? "" : note.content
-        let initialId = UUID()
-        self.elements = [.text(id: initialId, content: initialContent)]
-        self.focusedTextBoxId = initialId  // 💡 初期状態で最初のテキストボックスをフォーカス
+        parseContentToElements()
         
         if note.content.isEmpty {
             checkClipboard()
         }
+    }
+    
+    // 💡 Note.contentをマーカー解析してelementsに変換
+    private func parseContentToElements() {
+        let content = note.content
+        var currentElements: [EditorElement] = []
+        var currentText = ""
+        var searchStartIndex = content.startIndex
+        
+        while searchStartIndex < content.endIndex {
+            // マーカーを探す
+            if let markerStart = content[searchStartIndex...].range(of: cardMarkerPrefix) {
+                // マーカーの前のテキストを追加
+                let textBeforeMarker = String(content[searchStartIndex..<markerStart.lowerBound])
+                currentText += textBeforeMarker
+                
+                // マーカーの終わりを探す
+                if let markerEnd = content[markerStart.upperBound...].range(of: cardMarkerSuffix) {
+                    // マーカー内容を抽出
+                    let markerContent = String(content[markerStart.upperBound..<markerEnd.lowerBound])
+                    let parts = markerContent.components(separatedBy: cardSeparator)
+                    
+                    if parts.count == 2 {
+                        // 現在のテキストを要素として追加
+                        if !currentElements.isEmpty || !currentText.isEmpty {
+                            currentElements.append(.text(id: UUID(), content: currentText))
+                            currentText = ""
+                        }
+                        
+                        // カードを追加
+                        let card = AIResponseCard(title: parts[0], body: parts[1])
+                        currentElements.append(.aiCard(card: card))
+                    }
+                    
+                    searchStartIndex = markerEnd.upperBound
+                } else {
+                    // マーカーが閉じていない場合は通常テキストとして扱う
+                    currentText += cardMarkerPrefix
+                    searchStartIndex = markerStart.upperBound
+                }
+            } else {
+                // マーカーが見つからない場合は残りを全てテキストとして追加
+                currentText += String(content[searchStartIndex...])
+                break
+            }
+        }
+        
+        // 最後のテキストを追加
+        if currentElements.isEmpty {
+            // 要素が1つもない場合は空のテキストボックスを作成
+            let initialId = UUID()
+            currentElements.append(.text(id: initialId, content: currentText))
+            focusedTextBoxId = initialId
+        } else {
+            // カードがある場合は最後にテキストボックスを追加
+            currentElements.append(.text(id: UUID(), content: currentText))
+        }
+        
+        elements = currentElements
     }
     
     // 💡 クリップボードの内容をチェック
@@ -152,29 +213,26 @@ class NoteViewModel {
         }
         
         let prefix = String(content.prefix(insertPosition))
+        
+        // 💡 カードをマーカー形式に変換
+        let cardMarkers = cards.map { card in
+            "\n\(cardMarkerPrefix)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)\n"
+        }.joined()
+        
         let suffix = String(content.suffix(content.count - insertPosition))
         
+        // 💡 テキストにマーカーを挿入
+        let newContent = prefix + cardMarkers + suffix
+        
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            elements.remove(at: index)
-            elements.insert(.text(id: id, content: prefix), at: index)
-            
-            var currentIndex = index + 1
-            for card in cards {
-                elements.insert(.aiCard(card: card), at: currentIndex)
-                currentIndex += 1
-            }
-            
-            // 💡 カードの後に必ず空のテキストボックスを追加
-            let newTextBoxId = UUID()
-            elements.insert(.text(id: newTextBoxId, content: suffix), at: currentIndex)
+            elements[index] = .text(id: id, content: newContent)
             
             // 💡 選択範囲をリセット
-            if case .text(let textId, _) = elements[index] {
-                selectedRanges[textId] = NSRange(location: 0, length: 0)
-            }
+            selectedRanges[id] = NSRange(location: 0, length: 0)
             
-            // 💡 最後にテキストボックスがあることを確認
-            ensureTrailingTextBox()
+            // 💡 contentを再解析してelementsを更新
+            syncToNote()
+            parseContentToElements()
         }
     }
     
@@ -197,109 +255,40 @@ class NoteViewModel {
     // MARK: - カード操作
     func adoptCard(_ card: AIResponseCard) {
         withAnimation(.spring()) {
-            guard let cardIndex = elements.firstIndex(where: { $0.id == card.id }) else { return }
+            // 💡 カードのマーカーを通常テキストに置換
+            let cardMarker = "\(cardMarkerPrefix)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)"
+            let adoptedText = "【\(card.title)】\n\(card.body)\n"
             
-            let adoptedText = "\n【\(card.title)】\n\(card.body)\n"
+            note.content = note.content.replacingOccurrences(of: cardMarker, with: adoptedText)
             
-            // 💡 カードの前後にテキストボックスがあるか確認
-            let prevIndex = cardIndex - 1
-            let nextIndex = cardIndex + 1
-            
-            let hasPrevText = prevIndex >= 0 && {
-                if case .text = elements[prevIndex] { return true }
-                return false
-            }()
-            
-            let hasNextText = nextIndex < elements.count && {
-                if case .text = elements[nextIndex] { return true }
-                return false
-            }()
-            
-            if hasPrevText && hasNextText,
-               case .text(let prevId, let prevContent) = elements[prevIndex],
-               case .text(_, let nextContent) = elements[nextIndex] {
-                // 💡 前後両方にテキストボックスがある場合は統合
-                elements[prevIndex] = .text(id: prevId, content: prevContent + adoptedText + nextContent)
-                elements.remove(at: nextIndex) // 先に次を削除
-                elements.remove(at: cardIndex) // その後カードを削除
-            } else if hasNextText, case .text(let id, let content) = elements[nextIndex] {
-                // 💡 次にだけテキストボックスがある場合
-                elements[nextIndex] = .text(id: id, content: adoptedText + content)
-                elements.remove(at: cardIndex)
-            } else if hasPrevText, case .text(let id, let content) = elements[prevIndex] {
-                // 💡 前にだけテキストボックスがある場合
-                elements[prevIndex] = .text(id: id, content: content + adoptedText)
-                elements.remove(at: cardIndex)
-            } else {
-                // 💡 前後にテキストボックスがない場合は、新規作成
-                elements.remove(at: cardIndex)
-                elements.insert(.text(id: UUID(), content: adoptedText), at: cardIndex)
-            }
-            
-            // 💡 最後にテキストボックスがあることを確認
-            ensureTrailingTextBox()
-            syncToNote()
+            // 💡 再解析
+            parseContentToElements()
         }
     }
     
     func discardCard(_ card: AIResponseCard) {
         withAnimation(.easeOut(duration: 0.2)) {
-            guard let cardIndex = elements.firstIndex(where: { $0.id == card.id }) else { return }
+            // 💡 カードのマーカーを削除
+            let cardMarker = "\n\(cardMarkerPrefix)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)\n"
+            note.content = note.content.replacingOccurrences(of: cardMarker, with: "")
             
-            // 💡 カードの前後にテキストボックスがあるか確認
-            let prevIndex = cardIndex - 1
-            let nextIndex = cardIndex + 1
-            
-            let hasPrevText = prevIndex >= 0 && {
-                if case .text = elements[prevIndex] { return true }
-                return false
-            }()
-            
-            let hasNextText = nextIndex < elements.count && {
-                if case .text = elements[nextIndex] { return true }
-                return false
-            }()
-            
-            if hasPrevText && hasNextText,
-               case .text(let prevId, let prevContent) = elements[prevIndex],
-               case .text(_, let nextContent) = elements[nextIndex] {
-                // 💡 前後両方にテキストボックスがある場合は統合
-                elements[prevIndex] = .text(id: prevId, content: prevContent + nextContent)
-                elements.remove(at: nextIndex) // 先に次を削除
-                elements.remove(at: cardIndex) // その後カードを削除
-            } else {
-                // 💡 片方だけ、または両方ない場合は単純に削除
-                elements.remove(at: cardIndex)
-            }
-            
-            // 💡 最後にテキストボックスがあることを確認
-            ensureTrailingTextBox()
-            syncToNote()
-        }
-    }
-    
-    // 💡 最後の要素が必ずテキストボックスであることを保証
-    private func ensureTrailingTextBox() {
-        if let lastElement = elements.last {
-            switch lastElement {
-            case .text:
-                // 既にテキストボックスがある
-                break
-            case .aiCard:
-                // カードが最後なので、テキストボックスを追加
-                elements.append(.text(id: UUID(), content: ""))
-            }
-        } else {
-            // 要素が空の場合もテキストボックスを追加
-            elements.append(.text(id: UUID(), content: ""))
+            // 💡 再解析
+            parseContentToElements()
         }
     }
     
     func syncToNote() {
-        let fullText = elements.compactMap { element -> String? in
-            if case .text(_, let content) = element { return content }
-            return nil
+        // 💡 elementsをマーカー付きテキストに変換
+        let fullText = elements.map { element -> String in
+            switch element {
+            case .text(_, let content):
+                return content
+            case .aiCard(let card):
+                // カードをマーカー形式に変換
+                return "\(cardMarkerPrefix)\(card.title)\(cardSeparator)\(card.body)\(cardMarkerSuffix)"
+            }
         }.joined()
+        
         note.content = fullText
     }
 }
