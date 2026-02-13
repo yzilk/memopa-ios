@@ -16,10 +16,12 @@ struct AICardView: View {
             Text(card.title)
                 .font(.headline)
                 .foregroundColor(.primary)
+                .multilineTextAlignment(.leading)
             
             Text(card.body)
                 .font(Font.system(.subheadline, design: .default))
                 .foregroundColor(.secondary)
+                .multilineTextAlignment(.leading)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -23,6 +23,18 @@ struct InstantCopyEditor: UIViewRepresentable {
         textView.keyboardType = .default
         textView.autocorrectionType = .default
         
+        // 💡 左右のパディングを設定してテキストがはみ出ないようにする
+        textView.textContainerInset = UIEdgeInsets(top: 8, left: 5, bottom: 8, right: 5)
+        textView.textContainer.lineFragmentPadding = 0
+        
+        // 💡 テキストコンテナの幅を制限
+        textView.textContainer.widthTracksTextView = true
+        textView.textContainer.lineBreakMode = .byWordWrapping
+        
+        // 💡 横方向の拡大を防ぐ
+        textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        textView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        
         // 💡 長押しジェスチャーを追加
         let longPressGesture = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleLongPress))
         textView.addGestureRecognizer(longPressGesture)
@@ -36,6 +48,9 @@ struct InstantCopyEditor: UIViewRepresentable {
     func updateUIView(_ uiView: UITextView, context: Context) {
         if uiView.text != text {
             uiView.text = text
+            // 💡 テキスト変更後にレイアウトを更新
+            uiView.setNeedsLayout()
+            uiView.layoutIfNeeded()
         }
         if uiView.selectedRange != selectedRange {
             uiView.selectedRange = selectedRange

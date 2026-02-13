@@ -55,23 +55,29 @@ struct NoteDetailView: View {
                                         viewModel.processAI(buttonConfig: config)
                                     }
                                 )
+                                .frame(minHeight: 100)
                                 
                                 if viewModel.showClipboardSuggestion, binding(for: id).wrappedValue.isEmpty {
-                                    Text(viewModel.clipboardSuggestion)
-                                        .font(.body)
-                                        .foregroundColor(.gray.opacity(0.5))
-                                        .padding(.top, 8)
-                                        .padding(.leading, 5)
-                                        .allowsHitTesting(false)
-                                        .transition(.opacity)
-                                }
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                if viewModel.showClipboardSuggestion {
-                                    withAnimation {
-                                        viewModel.acceptClipboardSuggestion()
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(viewModel.clipboardSuggestion)
+                                            .font(.body)
+                                            .foregroundColor(.gray.opacity(0.5))
+                                            .multilineTextAlignment(.leading)
+                                        
+                                        Text("タップして貼り付け")
+                                            .font(.caption2)
+                                            .foregroundColor(.blue.opacity(0.6))
                                     }
+                                    .padding(.top, 8)
+                                    .padding(.leading, 10)
+                                    .padding(.trailing, 10)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        withAnimation {
+                                            viewModel.acceptClipboardSuggestion()
+                                        }
+                                    }
+                                    .transition(.opacity)
                                 }
                             }
                             .padding(.horizontal, 16)
