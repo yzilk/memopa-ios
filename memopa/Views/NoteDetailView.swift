@@ -9,16 +9,7 @@ struct NoteDetailView: View {
     @State private var viewModel: NoteViewModel
     @State private var isFocused: Bool = false
     @State private var showCopiedBadge = false
-    
-    // 💡 AppStorageを追加して、設定を保存・読み込みできるようにする
-    @AppStorage("btn1_name") var btn1Name = AISettings.defaultButtons[0].name
-    @AppStorage("btn1_prompt") var btn1Prompt = AISettings.defaultButtons[0].prompt
-    
-    @AppStorage("btn2_name") var btn2Name = AISettings.defaultButtons[1].name
-    @AppStorage("btn2_prompt") var btn2Prompt = AISettings.defaultButtons[1].prompt
-    
-    @AppStorage("btn3_name") var btn3Name = AISettings.defaultButtons[2].name
-    @AppStorage("btn3_prompt") var btn3Prompt = AISettings.defaultButtons[2].prompt
+    @State private var showButtonConfig = false
     
     init(note: Note) {
         _viewModel = State(wrappedValue: NoteViewModel(note: note))
@@ -49,14 +40,20 @@ struct NoteDetailView: View {
                                             showCopiedBadge = true
                                         }
                                     },
-                                    toolbarButtons: InstantCopyEditor.ToolbarButtons(
-                                        btn1Name: btn1Name,
-                                        btn1Action: { viewModel.processAI(mode: .definition, customPrompt: btn1Prompt) },
-                                        btn2Name: btn2Name,
-                                        btn2Action: { viewModel.processAI(mode: .metaphor, customPrompt: btn2Prompt) },
-                                        btn3Name: btn3Name,
-                                        btn3Action: { viewModel.processAI(mode: .essence, customPrompt: btn3Prompt) }
-                                    )
+                                    onLongPress: {
+                                        // 💡 長押しでクリップボードから貼り付け
+                                        if let clipboardText = UIPasteboard.general.string {
+                                            if let index = viewModel.elements.firstIndex(where: { $0.id == id }),
+                                               case .text(let textId, let content) = viewModel.elements[index] {
+                                                viewModel.elements[index] = .text(id: textId, content: content + clipboardText)
+                                                viewModel.syncToNote()
+                                            }
+                                        }
+                                    },
+                                    buttonConfigs: viewModel.buttonConfigViewModel.enabledButtons,
+                                    onButtonTap: { config in
+                                        viewModel.processAI(buttonConfig: config)
+                                    }
                                 )
                                 
                                 if viewModel.showClipboardSuggestion, binding(for: id).wrappedValue.isEmpty {
@@ -82,7 +79,7 @@ struct NoteDetailView: View {
                             
                         case .aiCard(let card):
                             AICardView(
-                                text: card.text,
+                                card: card,
                                 onAdopt: { viewModel.adoptCard(card) },
                                 onDiscard: { viewModel.discardCard(card) }
                             )
@@ -143,6 +140,14 @@ struct NoteDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(UIColor.systemBackground))
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    showButtonConfig = true
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                }
+            }
+            
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("完了") {
                     isFocused = false
@@ -150,6 +155,13 @@ struct NoteDetailView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.blue)
             }
+        }
+        .sheet(isPresented: $showButtonConfig) {
+            AIButtonConfigView()
+                .onDisappear {
+                    // 💡 設定画面を閉じたらボタン設定を再読み込み
+                    viewModel.buttonConfigViewModel.loadButtons()
+                }
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

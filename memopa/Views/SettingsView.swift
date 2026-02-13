@@ -73,6 +73,19 @@ struct SettingsView: View {
                     Text("選択したモデルがAI機能で使用されます")
                 }
                 
+                // MARK: - AIボタン設定
+                Section {
+                    NavigationLink {
+                        AIButtonConfigView()
+                    } label: {
+                        Label("AIボタンをカスタマイズ", systemImage: "slider.horizontal.3")
+                    }
+                } header: {
+                    Text("カスタマイズ")
+                } footer: {
+                    Text("キーボード上に表示されるAIボタンを編集できます")
+                }
+                
                 // MARK: - 情報
                 Section {
                     HStack {

@@ -10,16 +10,9 @@ struct InstantCopyEditor: UIViewRepresentable {
     @Binding var selectedRange: NSRange
     @Binding var isFocused: Bool
     var onCopy: () -> Void
-    var toolbarButtons: ToolbarButtons  // 💡 ツールバーボタンの情報を受け取る
-    
-    struct ToolbarButtons {
-        let btn1Name: String
-        let btn1Action: () -> Void
-        let btn2Name: String
-        let btn2Action: () -> Void
-        let btn3Name: String
-        let btn3Action: () -> Void
-    }
+    var onLongPress: () -> Void  // 💡 長押しコールバック
+    var buttonConfigs: [AIButtonConfig]
+    var onButtonTap: (AIButtonConfig) -> Void
     
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
@@ -30,30 +23,12 @@ struct InstantCopyEditor: UIViewRepresentable {
         textView.keyboardType = .default
         textView.autocorrectionType = .default
         
+        // 💡 長押しジェスチャーを追加
+        let longPressGesture = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleLongPress))
+        textView.addGestureRecognizer(longPressGesture)
+        
         // 💡 カスタムツールバーを作成
-        let toolbar = UIToolbar()
-        toolbar.frame = CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 44)
-        toolbar.barStyle = .default
-        toolbar.isTranslucent = true
-        
-        // ボタン1
-        let btn1 = UIBarButtonItem(title: toolbarButtons.btn1Name, style: .plain, target: context.coordinator, action: #selector(Coordinator.btn1Tapped))
-        btn1.setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
-        
-        // ボタン2
-        let btn2 = UIBarButtonItem(title: toolbarButtons.btn2Name, style: .plain, target: context.coordinator, action: #selector(Coordinator.btn2Tapped))
-        btn2.setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
-        
-        // ボタン3
-        let btn3 = UIBarButtonItem(title: toolbarButtons.btn3Name, style: .plain, target: context.coordinator, action: #selector(Coordinator.btn3Tapped))
-        btn3.setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
-        
-        // スペーサー
-        let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
-        
-        toolbar.items = [btn1, btn2, btn3, flexSpace]
-        toolbar.sizeToFit()
-        textView.inputAccessoryView = toolbar
+        updateToolbar(textView: textView, context: context)
         
         return textView
     }
@@ -73,20 +48,38 @@ struct InstantCopyEditor: UIViewRepresentable {
             uiView.resignFirstResponder()
         }
         
-        // 💡 ツールバーのボタンテキストを更新
-        if let toolbar = uiView.inputAccessoryView as? UIToolbar,
-           let items = toolbar.items {
-            if items.count >= 3 {
-                items[0].title = toolbarButtons.btn1Name
-                items[0].setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
-                
-                items[1].title = toolbarButtons.btn2Name
-                items[1].setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
-                
-                items[2].title = toolbarButtons.btn3Name
-                items[2].setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
-            }
+        // 💡 ツールバーを更新
+        updateToolbar(textView: uiView, context: context)
+    }
+    
+    private func updateToolbar(textView: UITextView, context: Context) {
+        let toolbar = UIToolbar()
+        toolbar.frame = CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 44)
+        toolbar.barStyle = .default
+        toolbar.isTranslucent = true
+        
+        var items: [UIBarButtonItem] = []
+        
+        // 💡 有効なボタンを動的に追加
+        for (index, config) in buttonConfigs.enumerated() {
+            let button = UIBarButtonItem(
+                title: config.name,
+                style: .plain,
+                target: context.coordinator,
+                action: #selector(Coordinator.buttonTapped(_:))
+            )
+            button.tag = index
+            button.setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
+            items.append(button)
         }
+        
+        // スペーサー
+        let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        items.append(flexSpace)
+        
+        toolbar.items = items
+        toolbar.sizeToFit()
+        textView.inputAccessoryView = toolbar
     }
     
     func makeCoordinator() -> Coordinator {
@@ -101,16 +94,18 @@ struct InstantCopyEditor: UIViewRepresentable {
             self.parent = parent
         }
         
-        @objc func btn1Tapped() {
-            parent.toolbarButtons.btn1Action()
+        @objc func buttonTapped(_ sender: UIBarButtonItem) {
+            let index = sender.tag
+            if index < parent.buttonConfigs.count {
+                parent.onButtonTap(parent.buttonConfigs[index])
+            }
         }
         
-        @objc func btn2Tapped() {
-            parent.toolbarButtons.btn2Action()
-        }
-        
-        @objc func btn3Tapped() {
-            parent.toolbarButtons.btn3Action()
+        @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+            if gesture.state == .began {
+                feedback.impactOccurred()
+                parent.onLongPress()
+            }
         }
         
         func textViewDidChange(_ textView: UITextView) {

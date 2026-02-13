@@ -11,6 +11,7 @@
 | **SwiftData** | Fast, intuitive persistence framework |
 | **UIKit Integration** | Advanced text control via `UIViewRepresentable` |
 | **Observation** | State management with the latest `@Observable` macro |
+| **Gemini API** | AI-powered text explanation and analysis |
 
 ---
 
@@ -25,6 +26,38 @@
     * Beautifully translucent "Copied!" badge for visual confirmation.
 * **💾 Robust Auto-save**
     * Instant data persistence ensures your thoughts are never lost.
+* **🤖 AI-Powered Explanations**
+    * Customizable AI buttons on keyboard toolbar
+    * Multi-card response format for easy information scanning
+    * Swipe gestures to adopt or discard AI suggestions
+* **📋 Smart Clipboard Integration**
+    * Long-press to paste from clipboard
+    * Automatic clipboard suggestion on new notes
+
+---
+
+## 🏗 Architecture
+
+### MVVM Pattern
+* **Models**: `Note`, `EditorElement`, `AIButtonConfig`, `AIResponseCard`
+* **ViewModels**: `NoteViewModel`, `NoteListViewModel`, `SettingsViewModel`, `AIButtonConfigViewModel`
+* **Views**: `NoteDetailView`, `NoteListView`, `SettingsView`, `AIButtonConfigView`
+* **Services**: `GeminiAPIService`, `KeychainService`
+
+### AI Response Format
+AI responses are structured as JSON with multiple cards for better information organization:
+
+```json
+{
+  "card_count": 3,
+  "cards": [
+    {
+      "title": "見出し",
+      "body": "説明文（箇条書きは「・」を使用）"
+    }
+  ]
+}
+```
 
 ---
 

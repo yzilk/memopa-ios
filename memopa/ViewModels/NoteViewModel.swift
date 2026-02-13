@@ -16,6 +16,7 @@ class NoteViewModel {
     var clipboardSuggestion: String = ""
     var showClipboardSuggestion: Bool = false
     var isLoadingAI: Bool = false
+    var buttonConfigViewModel = AIButtonConfigViewModel()
     
     init(note: Note) {
         self.note = note
@@ -54,7 +55,7 @@ class NoteViewModel {
         clipboardSuggestion = ""
     }
     
-    func processAI(mode: AIMode, customPrompt: String) {
+    func processAI(buttonConfig: AIButtonConfig) {
         guard !isLoadingAI else { return }
         
         guard let index = elements.lastIndex(where: {
@@ -63,7 +64,7 @@ class NoteViewModel {
         
         if case .text(_, let content) = elements[index] {
             let selectedText = getSelectedText(from: content)
-            let finalPrompt = "\(customPrompt)\n\n対象のテキスト:\n「\(selectedText)」"
+            let finalPrompt = "\(buttonConfig.prompt)\n\n対象のテキスト:\n「\(selectedText)」"
             
             isLoadingAI = true
             
@@ -81,24 +82,30 @@ class NoteViewModel {
             
             await MainActor.run {
                 isLoadingAI = false
-                insertAICards(responses: [response])
+                // 💡 複数カードを挿入
+                let cards = response.cards.map { cardData in
+                    AIResponseCard(title: cardData.title, body: cardData.body)
+                }
+                insertAICards(cards: cards)
             }
             
         } catch let error as APIError {
             await MainActor.run {
                 isLoadingAI = false
                 let errorMessage = "エラー: \(error.localizedDescription)\n\n設定画面でAPIキーを確認してください。"
-                insertAICards(responses: [errorMessage])
+                let errorCard = AIResponseCard(title: "エラー", body: errorMessage)
+                insertAICards(cards: [errorCard])
             }
         } catch {
             await MainActor.run {
                 isLoadingAI = false
-                insertAICards(responses: ["エラー: \(error.localizedDescription)"])
+                let errorCard = AIResponseCard(title: "エラー", body: error.localizedDescription)
+                insertAICards(cards: [errorCard])
             }
         }
     }
     
-    private func insertAICards(responses: [String]) {
+    private func insertAICards(cards: [AIResponseCard]) {
         guard let index = elements.lastIndex(where: {
             if case .text = $0 { return true } else { return false }
         }) else { return }
@@ -115,9 +122,8 @@ class NoteViewModel {
                 elements.insert(.text(id: id, content: prefix), at: index)
                 
                 var currentIndex = index + 1
-                for response in responses {
-                    let newCard = AICard(text: response)
-                    elements.insert(.aiCard(card: newCard), at: currentIndex)
+                for card in cards {
+                    elements.insert(.aiCard(card: card), at: currentIndex)
                     currentIndex += 1
                 }
                 
@@ -142,10 +148,10 @@ class NoteViewModel {
     }
     
     // MARK: - カード操作
-    func adoptCard(_ card: AICard) {
+    func adoptCard(_ card: AIResponseCard) {
         withAnimation(.spring()) {
             if let index = elements.firstIndex(where: { $0.id == card.id }) {
-                let adoptedText = "\n" + card.text + "\n"
+                let adoptedText = "\n【\(card.title)】\n\(card.body)\n"
                 if index > 0, case .text(let id, let content) = elements[index-1] {
                     elements[index-1] = .text(id: id, content: content + adoptedText)
                     elements.remove(at: index)
@@ -155,7 +161,7 @@ class NoteViewModel {
         }
     }
     
-    func discardCard(_ card: AICard) {
+    func discardCard(_ card: AIResponseCard) {
         withAnimation(.easeOut(duration: 0.2)) {
             elements.removeAll { $0.id == card.id }
             syncToNote()

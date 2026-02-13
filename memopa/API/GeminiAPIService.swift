@@ -28,11 +28,28 @@ class GeminiAPIService {
     // 💡 正しいエンドポイント形式
     private let baseURL = "https://generativelanguage.googleapis.com/v1beta"
     
-    // 💡 選択されたモデルでAPIを呼び出す
-    func fetchExplanation(prompt: String) async throws -> String {
+    // 💡 選択されたモデルでAPIを呼び出す（JSON形式のレスポンスを期待）
+    func fetchExplanation(prompt: String) async throws -> AIResponse {
         guard let apiKey = KeychainService.loadAPIKey() else {
             throw APIError.invalidKey
         }
+        
+        // 💡 JSON形式で返すようにプロンプトをラップ
+        let wrappedPrompt = """
+        \(prompt)
+        
+        回答は必ず以下のJSON形式のみで行ってください。Markdownのコードブロック（```json）や導入文は含めず、純粋なテキストとしてJSONのみを出力してください。
+        
+        {
+          "card_count": 3,
+          "cards": [
+            {
+              "title": "見出し",
+              "body": "説明文（箇条書きは「・」を使用）"
+            }
+          ]
+        }
+        """
         
         // 💡 保存されたモデルを取得、なければデフォルトを使用
         let modelName = KeychainService.loadModel() ?? GeminiModel.flashLatest.rawValue
@@ -52,7 +69,7 @@ class GeminiAPIService {
             "contents": [
                 [
                     "parts": [
-                        ["text": prompt]
+                        ["text": wrappedPrompt]
                     ]
                 ]
             ]
@@ -80,7 +97,9 @@ class GeminiAPIService {
                let content = candidates.first?["content"] as? [String: Any],
                let parts = content["parts"] as? [[String: Any]],
                let text = parts.first?["text"] as? String {
-                return text
+                
+                // 💡 JSONレスポンスをパース
+                return try parseAIResponse(text)
             }
             
             throw APIError.decodingError
@@ -90,6 +109,43 @@ class GeminiAPIService {
         } catch {
             print("Network error: \(error.localizedDescription)")
             throw APIError.networkError
+        }
+    }
+    
+    // 💡 AIのテキストレスポンスをAIResponse構造体にパース
+    private func parseAIResponse(_ text: String) throws -> AIResponse {
+        // Markdownのコードブロックを除去
+        var cleanedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // ```json と ``` を除去
+        if cleanedText.hasPrefix("```json") {
+            cleanedText = cleanedText.replacingOccurrences(of: "```json", with: "")
+        }
+        if cleanedText.hasPrefix("```") {
+            cleanedText = cleanedText.replacingOccurrences(of: "```", with: "")
+        }
+        if cleanedText.hasSuffix("```") {
+            cleanedText = String(cleanedText.dropLast(3))
+        }
+        
+        cleanedText = cleanedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard let jsonData = cleanedText.data(using: .utf8) else {
+            throw APIError.decodingError
+        }
+        
+        do {
+            let response = try JSONDecoder().decode(AIResponse.self, from: jsonData)
+            return response
+        } catch {
+            print("JSON parsing error: \(error)")
+            print("Attempted to parse: \(cleanedText)")
+            
+            // フォールバック: 単一カードとして返す
+            return AIResponse(
+                cardCount: 1,
+                cards: [AIResponse.CardData(title: "回答", body: text)]
+            )
         }
     }
     
