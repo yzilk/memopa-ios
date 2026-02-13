@@ -48,15 +48,21 @@ struct NoteListView: View {
                         Image(systemName: "gearshape")
                     }
                 }
-                
-                ToolbarItem(placement: .bottomBar) {
-                    HStack {
-                        Spacer()
-                        Button(action: addEmptyNote) {
-                            Image(systemName: "square.and.pencil")
-                        }
-                    }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                Button(action: addEmptyNote) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 60, height: 60)
+                        .background(
+                            Circle()
+                                .fill(Color.orange)
+                                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                        )
                 }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()

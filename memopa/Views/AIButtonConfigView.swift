@@ -52,14 +52,14 @@ struct AIButtonConfigView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
+                    Button("完了") {
+                        dismiss()
+                    }
+                    
                     Button {
                         viewModel.addButton()
                     } label: {
                         Image(systemName: "plus")
-                    }
-                    
-                    Button("完了") {
-                        dismiss()
                     }
                 }
             }

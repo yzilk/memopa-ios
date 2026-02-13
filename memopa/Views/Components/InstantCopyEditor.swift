@@ -62,15 +62,26 @@ struct InstantCopyEditor: UIViewRepresentable {
         
         // 💡 有効なボタンを動的に追加
         for (index, config) in buttonConfigs.enumerated() {
-            let button = UIBarButtonItem(
-                title: config.name,
-                style: .plain,
-                target: context.coordinator,
-                action: #selector(Coordinator.buttonTapped(_:))
-            )
+            let button = UIButton(type: .system)
+            button.setTitle(config.name, for: .normal)
+            button.titleLabel?.font = UIFont.systemFont(ofSize: 13, weight: .medium)
             button.tag = index
-            button.setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
-            items.append(button)
+            button.addTarget(context.coordinator, action: #selector(Coordinator.buttonTapped(_:)), for: .touchUpInside)
+            
+            // 💡 ボタンのサイズを固定して広がりを防ぐ
+            button.sizeToFit()
+            let buttonWidth = max(button.frame.width, 60) // 最小幅60
+            button.frame = CGRect(x: 0, y: 0, width: buttonWidth, height: 44)
+            
+            let barButtonItem = UIBarButtonItem(customView: button)
+            items.append(barButtonItem)
+            
+            // ボタン間にスペースを追加（最後のボタン以外）
+            if index < buttonConfigs.count - 1 {
+                let fixedSpace = UIBarButtonItem(barButtonSystemItem: .fixedSpace, target: nil, action: nil)
+                fixedSpace.width = 8
+                items.append(fixedSpace)
+            }
         }
         
         // スペーサー
@@ -94,7 +105,7 @@ struct InstantCopyEditor: UIViewRepresentable {
             self.parent = parent
         }
         
-        @objc func buttonTapped(_ sender: UIBarButtonItem) {
+        @objc func buttonTapped(_ sender: UIButton) {
             let index = sender.tag
             if index < parent.buttonConfigs.count {
                 parent.onButtonTap(parent.buttonConfigs[index])

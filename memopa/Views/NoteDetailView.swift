@@ -119,22 +119,20 @@ struct NoteDetailView: View {
             }
             
             if viewModel.isLoadingAI {
-                VStack {
-                    Spacer()
-                    HStack {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                        Text("AI解析中...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .padding(.bottom, 80)
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("AI解析中...")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                )
+                .padding(.top, 10)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -148,12 +146,14 @@ struct NoteDetailView: View {
                 }
             }
             
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("完了") {
-                    isFocused = false
+            if isFocused {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完了") {
+                        isFocused = false
+                    }
+                    .fontWeight(.bold)
+                    .foregroundColor(.blue)
                 }
-                .fontWeight(.bold)
-                .foregroundColor(.blue)
             }
         }
         .sheet(isPresented: $showButtonConfig) {

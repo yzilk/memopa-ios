@@ -63,13 +63,32 @@ class NoteViewModel {
         }) else { return }
         
         if case .text(_, let content) = elements[index] {
+            // 💡 選択範囲がなく、かつテキストが空の場合は何もしない
+            if selectedRange.length == 0 && content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return
+            }
+            
             let selectedText = getSelectedText(from: content)
-            let finalPrompt = "\(buttonConfig.prompt)\n\n対象のテキスト:\n「\(selectedText)」"
             
-            isLoadingAI = true
-            
-            Task {
-                await fetchAIResponse(prompt: finalPrompt)
+            // 💡 選択範囲がない場合は、全文を対象にするか確認
+            if selectedRange.length == 0 {
+                // 全文を対象にする
+                let finalPrompt = "\(buttonConfig.prompt)\n\n対象のテキスト:\n「\(content)」"
+                
+                isLoadingAI = true
+                
+                Task {
+                    await fetchAIResponse(prompt: finalPrompt)
+                }
+            } else {
+                // 選択範囲がある場合
+                let finalPrompt = "\(buttonConfig.prompt)\n\n対象のテキスト:\n「\(selectedText)」"
+                
+                isLoadingAI = true
+                
+                Task {
+                    await fetchAIResponse(prompt: finalPrompt)
+                }
             }
         }
     }
@@ -114,8 +133,13 @@ class NoteViewModel {
             let cursor = selectedRange.location
             let safeCursor = min(max(0, cursor), content.count)
             
-            let prefix = String(content.prefix(safeCursor))
-            let suffix = String(content.suffix(content.count - safeCursor))
+            // 💡 選択範囲がある場合は、選択範囲の終了位置の後にカードを挿入
+            let insertPosition = selectedRange.length > 0 
+                ? min(safeCursor + selectedRange.length, content.count)
+                : safeCursor
+            
+            let prefix = String(content.prefix(insertPosition))
+            let suffix = String(content.suffix(content.count - insertPosition))
             
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 elements.remove(at: index)
@@ -140,7 +164,8 @@ class NoteViewModel {
     // 💡 選択範囲からテキストを抜き出す
     private func getSelectedText(from content: String) -> String {
         if selectedRange.length == 0 {
-            return "（選択範囲なし：文脈から判断）"
+            // 選択範囲がない場合は全文を返す
+            return content
         }
         
         // 範囲外エラーを防ぐガード
