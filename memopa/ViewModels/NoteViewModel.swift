@@ -15,13 +15,13 @@ class NoteViewModel {
     var selectedRange: NSRange = NSRange(location: 0, length: 0)
     var clipboardSuggestion: String = ""
     var showClipboardSuggestion: Bool = false
+    var isLoadingAI: Bool = false
     
     init(note: Note) {
         self.note = note
         let initialContent = note.content.isEmpty ? "" : note.content
         self.elements = [.text(id: UUID(), content: initialContent)]
         
-        // 💡 空のノートの場合、クリップボードをチェック
         if note.content.isEmpty {
             checkClipboard()
         }
@@ -35,7 +35,6 @@ class NoteViewModel {
         }
     }
     
-    // 💡 クリップボードの内容を本文に統合
     func acceptClipboardSuggestion() {
         guard showClipboardSuggestion else { return }
         
@@ -44,10 +43,9 @@ class NoteViewModel {
         }), case .text(let id, _) = elements[index] {
             elements[index] = .text(id: id, content: clipboardSuggestion)
             syncToNote()
+            showClipboardSuggestion = false
+            clipboardSuggestion = ""
         }
-        
-        showClipboardSuggestion = false
-        clipboardSuggestion = ""
     }
     
     // 💡 クリップボードサジェストを破棄
@@ -56,78 +54,74 @@ class NoteViewModel {
         clipboardSuggestion = ""
     }
     
-    // MARK: - 核心ロジック：AIカードの挿入
     func processAI(mode: AIMode, customPrompt: String) {
-        // テキスト要素を探す
+        guard !isLoadingAI else { return }
+        
+        guard let index = elements.lastIndex(where: {
+            if case .text = $0 { return true } else { return false }
+        }) else { return }
+        
+        if case .text(_, let content) = elements[index] {
+            let selectedText = getSelectedText(from: content)
+            let finalPrompt = "\(customPrompt)\n\n対象のテキスト:\n「\(selectedText)」"
+            
+            isLoadingAI = true
+            
+            Task {
+                await fetchAIResponse(prompt: finalPrompt)
+            }
+        }
+    }
+    
+    private func fetchAIResponse(prompt: String) async {
+        let apiService = GeminiAPIService()
+        
+        do {
+            let response = try await apiService.fetchExplanation(prompt: prompt)
+            
+            await MainActor.run {
+                isLoadingAI = false
+                insertAICards(responses: [response])
+            }
+            
+        } catch let error as APIError {
+            await MainActor.run {
+                isLoadingAI = false
+                let errorMessage = "エラー: \(error.localizedDescription)\n\n設定画面でAPIキーを確認してください。"
+                insertAICards(responses: [errorMessage])
+            }
+        } catch {
+            await MainActor.run {
+                isLoadingAI = false
+                insertAICards(responses: ["エラー: \(error.localizedDescription)"])
+            }
+        }
+    }
+    
+    private func insertAICards(responses: [String]) {
         guard let index = elements.lastIndex(where: {
             if case .text = $0 { return true } else { return false }
         }) else { return }
         
         if case .text(let id, let content) = elements[index] {
-            
-            // 💡 ユーザーがなぞったテキストを取得
-            let selectedText = getSelectedText(from: content)
-            
-            // 💡 命令文（customPrompt）と対象テキストを合体
-            let finalPrompt = "\(customPrompt)\n\n対象のテキスト:\n「\(selectedText)」"
-            
-            // カードを挿入するカーソル位置
             let cursor = selectedRange.location
             let safeCursor = min(max(0, cursor), content.count)
             
             let prefix = String(content.prefix(safeCursor))
             let suffix = String(content.suffix(content.count - safeCursor))
             
-            // ローディング中のカードを作成
-            let loadingMsg = "解析中...\n「\(selectedText)」を\(customPrompt.contains("要約") ? "要約" : "解説")しています。"
-            let newCard = AICard(text: loadingMsg)
-            
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 elements.remove(at: index)
                 elements.insert(.text(id: id, content: prefix), at: index)
-                elements.insert(.aiCard(card: newCard), at: index + 1)
-                elements.insert(.text(id: UUID(), content: suffix), at: index + 2)
-            }
-            
-            // 💡 APIを呼び出す
-            Task {
-                await fetchAIResponse(for: newCard, prompt: finalPrompt)
-            }
-        }
-    }
-    
-    // 💡 API呼び出しとカードの更新
-    private func fetchAIResponse(for card: AICard, prompt: String) async {
-        let apiService = GeminiAPIService()
-        
-        do {
-            let response = try await apiService.fetchExplanation(prompt: prompt)
-            
-            // 💡 メインスレッドでUIを更新
-            await MainActor.run {
-                if let index = elements.firstIndex(where: { $0.id == card.id }) {
-                    withAnimation {
-                        elements[index] = .aiCard(card: AICard(id: card.id, text: response))
-                    }
+                
+                var currentIndex = index + 1
+                for response in responses {
+                    let newCard = AICard(text: response)
+                    elements.insert(.aiCard(card: newCard), at: currentIndex)
+                    currentIndex += 1
                 }
-            }
-            
-        } catch let error as APIError {
-            await MainActor.run {
-                if let index = elements.firstIndex(where: { $0.id == card.id }) {
-                    withAnimation {
-                        let errorMessage = "エラー: \(error.localizedDescription)\n\n設定画面でAPIキーを確認してください。"
-                        elements[index] = .aiCard(card: AICard(id: card.id, text: errorMessage))
-                    }
-                }
-            }
-        } catch {
-            await MainActor.run {
-                if let index = elements.firstIndex(where: { $0.id == card.id }) {
-                    withAnimation {
-                        elements[index] = .aiCard(card: AICard(id: card.id, text: "エラー: \(error.localizedDescription)"))
-                    }
-                }
+                
+                elements.insert(.text(id: UUID(), content: suffix), at: currentIndex)
             }
         }
     }

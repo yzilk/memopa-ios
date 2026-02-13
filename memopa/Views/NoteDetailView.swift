@@ -30,14 +30,20 @@ struct NoteDetailView: View {
         ZStack(alignment: .top) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    ForEach($bViewModel.elements) { $element in
+                    ForEach(Array($bViewModel.elements.enumerated()), id: \.element.id) { idx, $element in
                         switch element {
                         case .text(let id, _):
                             ZStack(alignment: .topLeading) {
                                 InstantCopyEditor(
                                     text: binding(for: id),
                                     selectedRange: $bViewModel.selectedRange,
-                                    isFocused: $isFocused,
+                                    isFocused: Binding(
+                                        get: { isFocused && isFirstTextElement(id: id) },
+                                        set: { newValue in
+                                            if newValue { isFocused = true }
+                                            else { isFocused = false }
+                                        }
+                                    ),
                                     onCopy: {
                                         withAnimation(.spring()) {
                                             showCopiedBadge = true
@@ -53,7 +59,6 @@ struct NoteDetailView: View {
                                     )
                                 )
                                 
-                                // 💡 クリップボードサジェスト（GitHub Copilot風）
                                 if viewModel.showClipboardSuggestion, binding(for: id).wrappedValue.isEmpty {
                                     Text(viewModel.clipboardSuggestion)
                                         .font(.body)
@@ -66,15 +71,14 @@ struct NoteDetailView: View {
                             }
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                // 💡 サジェストが表示されている場合は統合
                                 if viewModel.showClipboardSuggestion {
                                     withAnimation {
                                         viewModel.acceptClipboardSuggestion()
                                     }
                                 }
                             }
-                            .padding(.horizontal)
-                            .frame(maxWidth: UIScreen.main.bounds.width)
+                            .padding(.horizontal, 16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             
                         case .aiCard(let card):
                             AICardView(
@@ -82,6 +86,7 @@ struct NoteDetailView: View {
                                 onAdopt: { viewModel.adoptCard(card) },
                                 onDiscard: { viewModel.discardCard(card) }
                             )
+                            .padding(.horizontal, 16)
                             .frame(maxWidth: .infinity)
                             .transition(.asymmetric(
                                 insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -90,7 +95,6 @@ struct NoteDetailView: View {
                         }
                     }
                     
-                    // 💡 空白エリアをタップしたらサジェストを消す
                     Color.clear
                         .frame(height: 120)
                         .contentShape(Rectangle())
@@ -116,6 +120,25 @@ struct NoteDetailView: View {
                     }
                     .padding(.top, 10)
             }
+            
+            if viewModel.isLoadingAI {
+                VStack {
+                    Spacer()
+                    HStack {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                        Text("AI解析中...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .padding(.bottom, 80)
+                }
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(UIColor.systemBackground))
@@ -129,11 +152,17 @@ struct NoteDetailView: View {
             }
         }
         .onAppear {
-            // 💡 ビューが表示されたら自動的にキーボードを表示
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 isFocused = true
             }
         }
+    }
+    
+    private func isFirstTextElement(id: UUID) -> Bool {
+        guard let firstTextElement = viewModel.elements.first(where: {
+            if case .text = $0 { return true } else { return false }
+        }) else { return false }
+        return firstTextElement.id == id
     }
     
     // MARK: - Helper Methods

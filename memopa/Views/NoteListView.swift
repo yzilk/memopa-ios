@@ -49,10 +49,12 @@ struct NoteListView: View {
                     }
                 }
                 
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Spacer()
-                    Button(action: addEmptyNote) {
-                        Image(systemName: "square.and.pencil")
+                ToolbarItem(placement: .bottomBar) {
+                    HStack {
+                        Spacer()
+                        Button(action: addEmptyNote) {
+                            Image(systemName: "square.and.pencil")
+                        }
                     }
                 }
             }

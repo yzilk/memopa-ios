@@ -12,9 +12,7 @@ struct AICardView: View {
     @State private var offset: CGFloat = 0
     
     var body: some View {
-        // 💡 明示的に SwiftUI.Text のイニシャライザであることを明確にする
         Text(text)
-        // 💡 font の指定を以下のように修正（.system の戻り値を明示）
             .font(Font.system(.subheadline, design: .monospaced))
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -23,7 +21,6 @@ struct AICardView: View {
                     .fill(Color(UIColor.secondarySystemBackground))
                     .shadow(color: .black.opacity(0.05), radius: 5)
             )
-            .padding(.horizontal)
             .offset(x: offset)
             .gesture(
                 DragGesture()
