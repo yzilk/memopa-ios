@@ -23,42 +23,44 @@ struct NoteDetailView: View {
                     ForEach(Array($bViewModel.elements.enumerated()), id: \.element.id) { idx, $element in
                         switch element {
                         case .text(let id, _):
-                            ZStack(alignment: .topLeading) {
-                                InstantCopyEditor(
-                                    text: binding(for: id),
-                                    selectedRange: $bViewModel.selectedRange,
-                                    isFocused: Binding(
-                                        get: { viewModel.focusedTextBoxId == id },
-                                        set: { newValue in
-                                            if newValue {
-                                                viewModel.focusedTextBoxId = id
-                                            } else if viewModel.focusedTextBoxId == id {
-                                                viewModel.focusedTextBoxId = nil
-                                            }
+                            InstantCopyEditor(
+                                text: binding(for: id),
+                                selectedRange: Binding(
+                                    get: { viewModel.selectedRanges[id] ?? NSRange(location: 0, length: 0) },
+                                    set: { viewModel.selectedRanges[id] = $0 }
+                                ),
+                                isFocused: Binding(
+                                    get: { viewModel.focusedTextBoxId == id },
+                                    set: { newValue in
+                                        if newValue {
+                                            viewModel.focusedTextBoxId = id
+                                        } else if viewModel.focusedTextBoxId == id {
+                                            viewModel.focusedTextBoxId = nil
                                         }
-                                    ),
-                                    onCopy: {
-                                        withAnimation(.spring()) {
-                                            showCopiedBadge = true
-                                        }
-                                    },
-                                    onLongPress: {
-                                        // 💡 長押しでクリップボードから貼り付け
-                                        if let clipboardText = UIPasteboard.general.string {
-                                            if let index = viewModel.elements.firstIndex(where: { $0.id == id }),
-                                               case .text(let textId, let content) = viewModel.elements[index] {
-                                                viewModel.elements[index] = .text(id: textId, content: content + clipboardText)
-                                                viewModel.syncToNote()
-                                            }
-                                        }
-                                    },
-                                    buttonConfigs: viewModel.buttonConfigViewModel.enabledButtons,
-                                    onButtonTap: { config in
-                                        viewModel.processAI(buttonConfig: config)
                                     }
-                                )
-                                .frame(minHeight: 100)
-                                
+                                ),
+                                onCopy: {
+                                    withAnimation(.spring()) {
+                                        showCopiedBadge = true
+                                    }
+                                },
+                                onLongPress: {
+                                    // 💡 長押しでクリップボードから貼り付け
+                                    if let clipboardText = UIPasteboard.general.string {
+                                        if let index = viewModel.elements.firstIndex(where: { $0.id == id }),
+                                           case .text(let textId, let content) = viewModel.elements[index] {
+                                            viewModel.elements[index] = .text(id: textId, content: content + clipboardText)
+                                            viewModel.syncToNote()
+                                        }
+                                    }
+                                },
+                                buttonConfigs: viewModel.buttonConfigViewModel.enabledButtons,
+                                onButtonTap: { config in
+                                    viewModel.processAI(buttonConfig: config)
+                                }
+                            )
+                            .background(Color.blue.opacity(0.2))  // 💡 デバッグ: テキストボックスを青色に
+                            .overlay(alignment: .topLeading) {
                                 if viewModel.showClipboardSuggestion, binding(for: id).wrappedValue.isEmpty {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(viewModel.clipboardSuggestion)
@@ -80,10 +82,13 @@ struct NoteDetailView: View {
                                         }
                                     }
                                     .transition(.opacity)
+                                    .allowsHitTesting(true)
                                 }
                             }
                             .padding(.horizontal, 16)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .frame(minHeight: 300)  // 💡 すべてのテキストボックスを画面下まで広げる
+                            .background(Color.green.opacity(0.2))  // 💡 デバッグ: 外側のフレームを緑色に
                             
                         case .aiCard(let card):
                             AICardView(
@@ -93,6 +98,7 @@ struct NoteDetailView: View {
                             )
                             .padding(.horizontal, 16)
                             .frame(maxWidth: .infinity)
+                            .background(Color.red.opacity(0.2))  // 💡 デバッグ: カードを赤色に
                             .transition(.asymmetric(
                                 insertion: .move(edge: .trailing).combined(with: .opacity),
                                 removal: .move(edge: .leading).combined(with: .opacity)
@@ -188,6 +194,13 @@ struct NoteDetailView: View {
             if case .text = $0 { return true } else { return false }
         }) else { return false }
         return firstTextElement.id == id
+    }
+    
+    private func isLastTextBox(id: UUID) -> Bool {
+        guard let lastTextElement = viewModel.elements.last(where: {
+            if case .text = $0 { return true } else { return false }
+        }) else { return false }
+        return lastTextElement.id == id
     }
     
     // MARK: - Helper Methods

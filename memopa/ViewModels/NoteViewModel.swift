@@ -12,7 +12,7 @@ import UIKit
 class NoteViewModel {
     var note: Note
     var elements: [EditorElement] = []
-    var selectedRange: NSRange = NSRange(location: 0, length: 0)
+    var selectedRanges: [UUID: NSRange] = [:]  // 💡 各テキストボックスごとの選択範囲
     var clipboardSuggestion: String = ""
     var showClipboardSuggestion: Bool = false
     var isLoadingAI: Bool = false
@@ -66,12 +66,15 @@ class NoteViewModel {
               let index = elements.firstIndex(where: { $0.id == focusedId }),
               case .text(_, let content) = elements[index] else { return }
         
+        // 💡 このテキストボックスの選択範囲を取得
+        let selectedRange = selectedRanges[focusedId] ?? NSRange(location: 0, length: 0)
+        
         // 💡 選択範囲がなく、かつテキストが空の場合は何もしない
         if selectedRange.length == 0 && content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return
         }
         
-        let selectedText = getSelectedText(from: content)
+        let selectedText = getSelectedText(from: content, range: selectedRange)
         
         // 💡 選択範囲がない場合は、全文を対象にするか確認
         let finalPrompt: String
@@ -86,11 +89,11 @@ class NoteViewModel {
         isLoadingAI = true
         
         Task {
-            await fetchAIResponse(prompt: finalPrompt, targetTextBoxIndex: index)
+            await fetchAIResponse(prompt: finalPrompt, targetTextBoxIndex: index, selectedRange: selectedRange)
         }
     }
     
-    private func fetchAIResponse(prompt: String, targetTextBoxIndex: Int) async {
+    private func fetchAIResponse(prompt: String, targetTextBoxIndex: Int, selectedRange: NSRange) async {
         let apiService = GeminiAPIService()
         
         do {
@@ -102,7 +105,7 @@ class NoteViewModel {
                 let cards = response.cards.map { cardData in
                     AIResponseCard(title: cardData.title, body: cardData.body)
                 }
-                insertAICards(cards: cards, atTextBoxIndex: targetTextBoxIndex)
+                insertAICards(cards: cards, atTextBoxIndex: targetTextBoxIndex, selectedRange: selectedRange)
             }
             
         } catch let error as APIError {
@@ -110,27 +113,43 @@ class NoteViewModel {
                 isLoadingAI = false
                 let errorMessage = "エラー: \(error.localizedDescription)\n\n設定画面でAPIキーを確認してください。"
                 let errorCard = AIResponseCard(title: "エラー", body: errorMessage)
-                insertAICards(cards: [errorCard], atTextBoxIndex: targetTextBoxIndex)
+                insertAICards(cards: [errorCard], atTextBoxIndex: targetTextBoxIndex, selectedRange: selectedRange)
             }
         } catch {
             await MainActor.run {
                 isLoadingAI = false
                 let errorCard = AIResponseCard(title: "エラー", body: error.localizedDescription)
-                insertAICards(cards: [errorCard], atTextBoxIndex: targetTextBoxIndex)
+                insertAICards(cards: [errorCard], atTextBoxIndex: targetTextBoxIndex, selectedRange: selectedRange)
             }
         }
     }
     
-    private func insertAICards(cards: [AIResponseCard], atTextBoxIndex index: Int) {
+    private func insertAICards(cards: [AIResponseCard], atTextBoxIndex index: Int, selectedRange: NSRange) {
         guard index < elements.count, case .text(let id, let content) = elements[index] else { return }
         
         let cursor = selectedRange.location
         let safeCursor = min(max(0, cursor), content.count)
         
         // 💡 選択範囲がある場合は、選択範囲の終了位置の後にカードを挿入
-        let insertPosition = selectedRange.length > 0 
+        let selectionEnd = selectedRange.length > 0 
             ? min(safeCursor + selectedRange.length, content.count)
             : safeCursor
+        
+        // 💡 選択範囲の後ろから最初の改行または文末を探す
+        let insertPosition: Int
+        if selectionEnd < content.count {
+            let searchStart = content.index(content.startIndex, offsetBy: selectionEnd)
+            if let newlineRange = content[searchStart...].firstIndex(of: "\n") {
+                // 改行が見つかった場合は、改行の直後に挿入
+                insertPosition = content.distance(from: content.startIndex, to: newlineRange) + 1
+            } else {
+                // 改行が見つからない場合は、文末に挿入
+                insertPosition = content.count
+            }
+        } else {
+            // 選択範囲が文末の場合
+            insertPosition = content.count
+        }
         
         let prefix = String(content.prefix(insertPosition))
         let suffix = String(content.suffix(content.count - insertPosition))
@@ -150,7 +169,9 @@ class NoteViewModel {
             elements.insert(.text(id: newTextBoxId, content: suffix), at: currentIndex)
             
             // 💡 選択範囲をリセット
-            selectedRange = NSRange(location: 0, length: 0)
+            if case .text(let textId, _) = elements[index] {
+                selectedRanges[textId] = NSRange(location: 0, length: 0)
+            }
             
             // 💡 最後にテキストボックスがあることを確認
             ensureTrailingTextBox()
@@ -158,15 +179,15 @@ class NoteViewModel {
     }
     
     // 💡 選択範囲からテキストを抜き出す
-    private func getSelectedText(from content: String) -> String {
-        if selectedRange.length == 0 {
+    private func getSelectedText(from content: String, range: NSRange) -> String {
+        if range.length == 0 {
             // 選択範囲がない場合は全文を返す
             return content
         }
         
         // 範囲外エラーを防ぐガード
-        let safeLocation = max(0, min(selectedRange.location, content.count))
-        let safeLength = min(selectedRange.length, content.count - safeLocation)
+        let safeLocation = max(0, min(range.location, content.count))
+        let safeLength = min(range.length, content.count - safeLocation)
         
         let start = content.index(content.startIndex, offsetBy: safeLocation)
         let end = content.index(start, offsetBy: safeLength)

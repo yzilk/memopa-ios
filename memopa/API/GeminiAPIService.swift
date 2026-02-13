@@ -63,7 +63,7 @@ class GeminiAPIService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30
+        request.timeoutInterval = 60  // 💡 60秒に延長
         
         let body: [String: Any] = [
             "contents": [

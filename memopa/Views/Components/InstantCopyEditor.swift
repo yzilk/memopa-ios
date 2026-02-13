@@ -47,10 +47,14 @@ struct InstantCopyEditor: UIViewRepresentable {
     
     func updateUIView(_ uiView: UITextView, context: Context) {
         if uiView.text != text {
+            let oldText = uiView.text ?? ""
             uiView.text = text
-            // 💡 テキスト変更後にレイアウトを更新
-            uiView.setNeedsLayout()
-            uiView.layoutIfNeeded()
+            
+            // 💡 テキストが大幅に変更された場合（ペーストなど）は即座にレイアウト更新
+            if abs(text.count - oldText.count) > 10 {
+                uiView.invalidateIntrinsicContentSize()
+                uiView.sizeToFit()
+            }
         }
         if uiView.selectedRange != selectedRange {
             uiView.selectedRange = selectedRange
@@ -136,6 +140,8 @@ struct InstantCopyEditor: UIViewRepresentable {
         
         func textViewDidChange(_ textView: UITextView) {
             parent.text = textView.text
+            // 💡 テキスト変更時にサイズを再計算
+            textView.invalidateIntrinsicContentSize()
         }
         
         func textViewDidChangeSelection(_ textView: UITextView) {
