@@ -50,16 +50,17 @@ struct AIButtonConfigView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 EditButton()
             }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    viewModel.addButton()
-                } label: {
-                    Image(systemName: "plus")
-                }
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("完了") {
-                    dismiss()
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 16) {
+                    Button {
+                        viewModel.addButton()
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    
+                    Button("完了") {
+                        dismiss()
+                    }
                 }
             }
         }

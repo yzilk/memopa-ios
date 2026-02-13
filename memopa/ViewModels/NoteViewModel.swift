@@ -127,7 +127,12 @@ class NoteViewModel {
                     currentIndex += 1
                 }
                 
-                elements.insert(.text(id: UUID(), content: suffix), at: currentIndex)
+                // 💡 カードの後に必ず空のテキストボックスを追加
+                let newTextBoxId = UUID()
+                elements.insert(.text(id: newTextBoxId, content: suffix), at: currentIndex)
+                
+                // 💡 最後にテキストボックスがあることを確認
+                ensureTrailingTextBox()
             }
         }
     }
@@ -156,6 +161,9 @@ class NoteViewModel {
                     elements[index-1] = .text(id: id, content: content + adoptedText)
                     elements.remove(at: index)
                 }
+                
+                // 💡 最後にテキストボックスがあることを確認
+                ensureTrailingTextBox()
                 syncToNote()
             }
         }
@@ -164,7 +172,27 @@ class NoteViewModel {
     func discardCard(_ card: AIResponseCard) {
         withAnimation(.easeOut(duration: 0.2)) {
             elements.removeAll { $0.id == card.id }
+            
+            // 💡 最後にテキストボックスがあることを確認
+            ensureTrailingTextBox()
             syncToNote()
+        }
+    }
+    
+    // 💡 最後の要素が必ずテキストボックスであることを保証
+    private func ensureTrailingTextBox() {
+        if let lastElement = elements.last {
+            switch lastElement {
+            case .text:
+                // 既にテキストボックスがある
+                break
+            case .aiCard:
+                // カードが最後なので、テキストボックスを追加
+                elements.append(.text(id: UUID(), content: ""))
+            }
+        } else {
+            // 要素が空の場合もテキストボックスを追加
+            elements.append(.text(id: UUID(), content: ""))
         }
     }
     
