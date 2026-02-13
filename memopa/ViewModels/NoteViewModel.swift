@@ -61,42 +61,36 @@ class NoteViewModel {
     func processAI(buttonConfig: AIButtonConfig) {
         guard !isLoadingAI else { return }
         
-        guard let index = elements.lastIndex(where: {
-            if case .text = $0 { return true } else { return false }
-        }) else { return }
+        // 💡 現在フォーカスされているテキストボックスを取得
+        guard let focusedId = focusedTextBoxId,
+              let index = elements.firstIndex(where: { $0.id == focusedId }),
+              case .text(_, let content) = elements[index] else { return }
         
-        if case .text(_, let content) = elements[index] {
-            // 💡 選択範囲がなく、かつテキストが空の場合は何もしない
-            if selectedRange.length == 0 && content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return
-            }
-            
-            let selectedText = getSelectedText(from: content)
-            
-            // 💡 選択範囲がない場合は、全文を対象にするか確認
-            if selectedRange.length == 0 {
-                // 全文を対象にする
-                let finalPrompt = "\(buttonConfig.prompt)\n\n対象のテキスト:\n「\(content)」"
-                
-                isLoadingAI = true
-                
-                Task {
-                    await fetchAIResponse(prompt: finalPrompt)
-                }
-            } else {
-                // 選択範囲がある場合
-                let finalPrompt = "\(buttonConfig.prompt)\n\n対象のテキスト:\n「\(selectedText)」"
-                
-                isLoadingAI = true
-                
-                Task {
-                    await fetchAIResponse(prompt: finalPrompt)
-                }
-            }
+        // 💡 選択範囲がなく、かつテキストが空の場合は何もしない
+        if selectedRange.length == 0 && content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return
+        }
+        
+        let selectedText = getSelectedText(from: content)
+        
+        // 💡 選択範囲がない場合は、全文を対象にするか確認
+        let finalPrompt: String
+        if selectedRange.length == 0 {
+            // 全文を対象にする
+            finalPrompt = "\(buttonConfig.prompt)\n\n対象のテキスト:\n「\(content)」"
+        } else {
+            // 選択範囲がある場合
+            finalPrompt = "\(buttonConfig.prompt)\n\n対象のテキスト:\n「\(selectedText)」"
+        }
+        
+        isLoadingAI = true
+        
+        Task {
+            await fetchAIResponse(prompt: finalPrompt, targetTextBoxIndex: index)
         }
     }
     
-    private func fetchAIResponse(prompt: String) async {
+    private func fetchAIResponse(prompt: String, targetTextBoxIndex: Int) async {
         let apiService = GeminiAPIService()
         
         do {
@@ -108,7 +102,7 @@ class NoteViewModel {
                 let cards = response.cards.map { cardData in
                     AIResponseCard(title: cardData.title, body: cardData.body)
                 }
-                insertAICards(cards: cards)
+                insertAICards(cards: cards, atTextBoxIndex: targetTextBoxIndex)
             }
             
         } catch let error as APIError {
@@ -116,51 +110,50 @@ class NoteViewModel {
                 isLoadingAI = false
                 let errorMessage = "エラー: \(error.localizedDescription)\n\n設定画面でAPIキーを確認してください。"
                 let errorCard = AIResponseCard(title: "エラー", body: errorMessage)
-                insertAICards(cards: [errorCard])
+                insertAICards(cards: [errorCard], atTextBoxIndex: targetTextBoxIndex)
             }
         } catch {
             await MainActor.run {
                 isLoadingAI = false
                 let errorCard = AIResponseCard(title: "エラー", body: error.localizedDescription)
-                insertAICards(cards: [errorCard])
+                insertAICards(cards: [errorCard], atTextBoxIndex: targetTextBoxIndex)
             }
         }
     }
     
-    private func insertAICards(cards: [AIResponseCard]) {
-        guard let index = elements.lastIndex(where: {
-            if case .text = $0 { return true } else { return false }
-        }) else { return }
+    private func insertAICards(cards: [AIResponseCard], atTextBoxIndex index: Int) {
+        guard index < elements.count, case .text(let id, let content) = elements[index] else { return }
         
-        if case .text(let id, let content) = elements[index] {
-            let cursor = selectedRange.location
-            let safeCursor = min(max(0, cursor), content.count)
+        let cursor = selectedRange.location
+        let safeCursor = min(max(0, cursor), content.count)
+        
+        // 💡 選択範囲がある場合は、選択範囲の終了位置の後にカードを挿入
+        let insertPosition = selectedRange.length > 0 
+            ? min(safeCursor + selectedRange.length, content.count)
+            : safeCursor
+        
+        let prefix = String(content.prefix(insertPosition))
+        let suffix = String(content.suffix(content.count - insertPosition))
+        
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            elements.remove(at: index)
+            elements.insert(.text(id: id, content: prefix), at: index)
             
-            // 💡 選択範囲がある場合は、選択範囲の終了位置の後にカードを挿入
-            let insertPosition = selectedRange.length > 0 
-                ? min(safeCursor + selectedRange.length, content.count)
-                : safeCursor
-            
-            let prefix = String(content.prefix(insertPosition))
-            let suffix = String(content.suffix(content.count - insertPosition))
-            
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                elements.remove(at: index)
-                elements.insert(.text(id: id, content: prefix), at: index)
-                
-                var currentIndex = index + 1
-                for card in cards {
-                    elements.insert(.aiCard(card: card), at: currentIndex)
-                    currentIndex += 1
-                }
-                
-                // 💡 カードの後に必ず空のテキストボックスを追加
-                let newTextBoxId = UUID()
-                elements.insert(.text(id: newTextBoxId, content: suffix), at: currentIndex)
-                
-                // 💡 最後にテキストボックスがあることを確認
-                ensureTrailingTextBox()
+            var currentIndex = index + 1
+            for card in cards {
+                elements.insert(.aiCard(card: card), at: currentIndex)
+                currentIndex += 1
             }
+            
+            // 💡 カードの後に必ず空のテキストボックスを追加
+            let newTextBoxId = UUID()
+            elements.insert(.text(id: newTextBoxId, content: suffix), at: currentIndex)
+            
+            // 💡 選択範囲をリセット
+            selectedRange = NSRange(location: 0, length: 0)
+            
+            // 💡 最後にテキストボックスがあることを確認
+            ensureTrailingTextBox()
         }
     }
     
@@ -183,23 +176,80 @@ class NoteViewModel {
     // MARK: - カード操作
     func adoptCard(_ card: AIResponseCard) {
         withAnimation(.spring()) {
-            if let index = elements.firstIndex(where: { $0.id == card.id }) {
-                let adoptedText = "\n【\(card.title)】\n\(card.body)\n"
-                if index > 0, case .text(let id, let content) = elements[index-1] {
-                    elements[index-1] = .text(id: id, content: content + adoptedText)
-                    elements.remove(at: index)
-                }
-                
-                // 💡 最後にテキストボックスがあることを確認
-                ensureTrailingTextBox()
-                syncToNote()
+            guard let cardIndex = elements.firstIndex(where: { $0.id == card.id }) else { return }
+            
+            let adoptedText = "\n【\(card.title)】\n\(card.body)\n"
+            
+            // 💡 カードの前後にテキストボックスがあるか確認
+            let prevIndex = cardIndex - 1
+            let nextIndex = cardIndex + 1
+            
+            let hasPrevText = prevIndex >= 0 && {
+                if case .text = elements[prevIndex] { return true }
+                return false
+            }()
+            
+            let hasNextText = nextIndex < elements.count && {
+                if case .text = elements[nextIndex] { return true }
+                return false
+            }()
+            
+            if hasPrevText && hasNextText,
+               case .text(let prevId, let prevContent) = elements[prevIndex],
+               case .text(_, let nextContent) = elements[nextIndex] {
+                // 💡 前後両方にテキストボックスがある場合は統合
+                elements[prevIndex] = .text(id: prevId, content: prevContent + adoptedText + nextContent)
+                elements.remove(at: nextIndex) // 先に次を削除
+                elements.remove(at: cardIndex) // その後カードを削除
+            } else if hasNextText, case .text(let id, let content) = elements[nextIndex] {
+                // 💡 次にだけテキストボックスがある場合
+                elements[nextIndex] = .text(id: id, content: adoptedText + content)
+                elements.remove(at: cardIndex)
+            } else if hasPrevText, case .text(let id, let content) = elements[prevIndex] {
+                // 💡 前にだけテキストボックスがある場合
+                elements[prevIndex] = .text(id: id, content: content + adoptedText)
+                elements.remove(at: cardIndex)
+            } else {
+                // 💡 前後にテキストボックスがない場合は、新規作成
+                elements.remove(at: cardIndex)
+                elements.insert(.text(id: UUID(), content: adoptedText), at: cardIndex)
             }
+            
+            // 💡 最後にテキストボックスがあることを確認
+            ensureTrailingTextBox()
+            syncToNote()
         }
     }
     
     func discardCard(_ card: AIResponseCard) {
         withAnimation(.easeOut(duration: 0.2)) {
-            elements.removeAll { $0.id == card.id }
+            guard let cardIndex = elements.firstIndex(where: { $0.id == card.id }) else { return }
+            
+            // 💡 カードの前後にテキストボックスがあるか確認
+            let prevIndex = cardIndex - 1
+            let nextIndex = cardIndex + 1
+            
+            let hasPrevText = prevIndex >= 0 && {
+                if case .text = elements[prevIndex] { return true }
+                return false
+            }()
+            
+            let hasNextText = nextIndex < elements.count && {
+                if case .text = elements[nextIndex] { return true }
+                return false
+            }()
+            
+            if hasPrevText && hasNextText,
+               case .text(let prevId, let prevContent) = elements[prevIndex],
+               case .text(_, let nextContent) = elements[nextIndex] {
+                // 💡 前後両方にテキストボックスがある場合は統合
+                elements[prevIndex] = .text(id: prevId, content: prevContent + nextContent)
+                elements.remove(at: nextIndex) // 先に次を削除
+                elements.remove(at: cardIndex) // その後カードを削除
+            } else {
+                // 💡 片方だけ、または両方ない場合は単純に削除
+                elements.remove(at: cardIndex)
+            }
             
             // 💡 最後にテキストボックスがあることを確認
             ensureTrailingTextBox()
